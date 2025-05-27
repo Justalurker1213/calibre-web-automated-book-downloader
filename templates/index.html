@@ -125,6 +125,41 @@
                 </div>
             </section>
 
+            {% if hardcover_enable %}
+            +            <section class="uk-section-xxsmall uk-padding">
+                <div class="uk-container uk-width-expand">
+                    <ul uk-accordion id="hardcover-accordion">
+                        <li>
+                            <a class="uk-accordion-title" href><h1 class="uk-heading-xsmall">Hardcover Integration</h1></a>
+                            <div class="uk-accordion-content">
+                                <div id="hardcover-loading" class="uk-flex uk-flex-center" role="status" hidden>
+                                    <div uk-spinner="ratio: 2"></div>
+                                    <span>Loading Hardcover list...</span>
+                                </div>
+                                <div class="hardcover-content">
+                                    <button class="uk-button uk-button-primary uk-margin-small" id="hardcover-fetch-wtr-button">Fetch Want to Read List</button>
+                                    <div class="uk-overflow-auto">
+                                        <table id="hardcover-table" class="uk-table uk-table-hover uk-table-divider" role="grid">
+                                            <thead>
+                                                <tr>
+                                                    <th scope="col">Title</th>
+                                                    <th scope="col">Author(s)</th>
+                                                    <th scope="col">ISBN13</th>
+                                                    <th scope="col">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                +                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+            {% endif %}
+
             <!-- Results Section -->
             <ul uk-accordion id="results-section-accordion">
                 <li id="search-accordion">

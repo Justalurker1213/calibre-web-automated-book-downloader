@@ -32,6 +32,12 @@ document.addEventListener('DOMContentLoaded', () => {
             form: document.getElementById('debug-form'),
             button: document.getElementById('debug-button'),
             spinner: document.getElementById('debug-spinner')
+        },
+        hardcover: {
+            hardcoverAccordion: document.getElementById('hardcover-accordion'),
+            fetchWTRButton: document.getElementById('hardcover-fetch-wtr-button'),
+            hardcoverLoading: document.getElementById('hardcover-loading'),
+            hardcoverTableBody: document.querySelector('#hardcover-table tbody'),
         }
     };
 
@@ -41,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const STATE = {
         isSearching: false,
         isLoadingDetails: false,
+        isLoadingHardcover: false,
     };
 
     // Constants
@@ -49,7 +56,11 @@ document.addEventListener('DOMContentLoaded', () => {
         search: '/request/api/search',
         info: '/request/api/info',
         download: '/request/api/download',
-        status: '/request/api/status'
+        status: '/request/api/status',
+        hardcover: {
+            wantToRead: '/request/api/hardcover/want_to_read',
+            download: '/request/api/hardcover/download'
+        }
     };
     const FILTERS = ['isbn', 'author', 'title', 'lang' , 'sort', "content"];
 
@@ -502,6 +513,99 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Hardcover Functions
+    const hardcover = {
+        async fetchWantToRead() {
+            if (STATE.isLoadingHardcover) return;
+
+            try {
+                STATE.isLoadingHardcover = true;
+                utils.showLoading(elements.hardcover.hardcoverLoading);
+                if (!elements.hardcover.hardcoverAccordion.classList.contains('uk-open')) {
+                    utils.showAccordion(elements.hardcover.hardcoverAccordion);
+                };
+
+                const data = await utils.fetchJson(API_ENDpoints.hardcover.wantToRead);
+                this.displayWantToReadList(data);
+            } catch (error) {
+                this.handleError(error);
+            } finally {
+                STATE.isLoadingHardcover = false;
+                utils.hideLoading(elements.hardcover.hardcoverLoading);
+            }
+        },
+
+        displayWantToReadList(books) {
+            elements.hardcover.hardcoverTableBody.innerHTML = '';
+            if (!books.length) {
+                const row = utils.createElement('tr', {}, [
+                    utils.createElement('td', {
+                        colSpan: '4',
+                        textContent: 'No books in your "Want to Read" list.'
+                    })
+                ]);
+                elements.hardcover.hardcoverTableBody.appendChild(row);
+                return;
+            }
+
+            books.forEach(book => {
+                const row = this.createHardcoverBookRow(book);
+                elements.hardcover.hardcoverTableBody.appendChild(row);
+            });
+        },
+
+        createHardcoverBookRow(book) {
+            const downloadButton = utils.createElement('button', {
+                className: 'uk-button uk-button-primary uk-button-small',
+                onclick: () => this.downloadHardcoverBook(book.id)
+            }, [utils.createElement('span', { textContent: 'Download via AA' })]);
+
+            return utils.createElement('tr', {}, [
+                utils.createElement('td', { textContent: book.title || 'N/A' }),
+                utils.createElement('td', { textContent: book.author_names.join(', ') || 'N/A' }),
+                utils.createElement('td', { textContent: book.isbn13 || 'N/A' }),
+                utils.createElement('td', {}, [downloadButton])
+            ]);
+        },
+
+        async downloadHardcoverBook(hardcoverId) {
+            try {
+                utils.showLoading(elements.hardcover.hardcoverLoading);
+                await utils.fetchJson(`${API_ENDPOINTS.hardcover.download}?hardcover_id=${encodeURIComponent(hardcoverId)}`);
+                UIkit.notification({
+                    message: 'Book queued for download!',
+                    status: 'success',
+                    pos: 'top-center',
+                    timeout: 3000
+                });
+                status.fetch(); // Refresh status table
+            } catch (error) {
+                console.error('Hardcover download error:', error);
+                UIkit.notification({
+                    message: 'Error queuing book for download from Hardcover.',
+                    status: 'danger',
+                    pos: 'top-center',
+                    timeout: 5000
+                });
+            } finally {
+                utils.hideLoading(elements.hardcover.hardcoverLoading);
+            }
+        },
+
+        handleError(error) {
+            console.error('Hardcover API error:', error);
+            elements.hardcover.hardcoverTableBody.innerHTML = '';
+            const errorRow = utils.createElement('tr', {}, [
+                utils.createElement('td', {
+                    colSpan: '4',
+                    className: 'error-message',
+                    textContent: 'Error loading Hardcover list. Please check your API key and connection.'
+                })
+            ]);
+            elements.hardcover.hardcoverTableBody.appendChild(errorRow);
+        }
+    };
+
     // Status Functions
     const status = {
         async fetch() {
@@ -766,6 +870,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(query) search.performSearch(query);
             }
         });
+
+        // Hardcover events
+        if (elements.hardcover.fetchWTRButton) {
+            elements.hardcover.fetchWTRButton.addEventListener('click', () => {
+                hardcover.fetchWantToRead();
+            });
+        }
 
         // Modal close on overlay click
         elements.modalOverlay.addEventListener('click', (e) => {

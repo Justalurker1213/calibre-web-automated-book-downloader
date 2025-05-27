@@ -31,6 +31,18 @@ class BookInfo:
     info: Optional[Dict[str, List[str]]] = None
     download_urls: List[str] = field(default_factory=list)
     download_path: Optional[str] = None
+    hardcover_id: Optional[str] = None # Added for Hardcover integration
+
+@dataclass
+class HardcoverBook:
+    """Data class representing a book from Hardcover API."""
+    id: str
+    title: str
+    author_names: List[str]
+    isbn13: Optional[str] = None
+    cover_url: Optional[str] = None
+    description: Optional[str] = None
+    published_date: Optional[str] = None
 
 class BookQueue:
     """Thread-safe book queue manager."""

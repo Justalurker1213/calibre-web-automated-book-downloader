@@ -46,4 +46,8 @@ if USING_TOR:
     USE_DOH = False
     HTTP_PROXY = ""
     HTTPS_PROXY = ""
-    
+
+# Hardcover Integration
+HARDCOVER_API_KEY = os.getenv("HARDCOVER_API_KEY", "").strip()
+HARDCOVER_API_URL = os.getenv("HARDCOVER_API_URL", "https://api.hardcover.app/v1/graphql").strip()
+HARDCOVER_ENABLE = string_to_bool(os.getenv("HARDCOVER_ENABLE", "false"))

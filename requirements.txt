@@ -9,3 +9,4 @@ seleniumbase
 gunicorn
 python-xlib
 psutil
+requests-graphql

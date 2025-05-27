@@ -10,6 +10,9 @@ services:
       APP_ENV: prod
       UID: 1000
       GID: 100
+      HARDCOVER_ENABLE: "false" # Set to "true" to enable Hardcover integration
+      HARDCOVER_API_KEY: "" # Your Hardcover API Key
+      HARDCOVER_API_URL: "https://api.hardcover.app/v1/graphql"
     ports:
       - 8084:8084
     restart: unless-stopped

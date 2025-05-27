@@ -10,7 +10,9 @@ import os
 from logger import setup_logger
 from config import CUSTOM_SCRIPT
 from env import INGEST_DIR, TMP_DIR, MAIN_LOOP_SLEEP_TIME, USE_BOOK_TITLE
-from models import book_queue, BookInfo, QueueStatus, SearchFilters
+from models import book_queue, BookInfo, QueueStatus, SearchFilters, HardcoverBook
+if HARDCOVER_ENABLE:
+    import hardcover_manager
 import book_manager
 
 logger = setup_logger(__name__)
@@ -190,3 +192,69 @@ download_thread = threading.Thread(
     daemon=True
 )
 download_thread.start()
+
+# --- Hardcover Integration Functions ---
+if HARDCOVER_ENABLE:
+    def get_hardcover_want_to_read() -> List[Dict[str, Any]]:
+        """Fetch 'Want to Read' list from Hardcover."""
+        try:
+            hardcover_books = hardcover_manager.get_want_to_read_list()
+            # Convert HardcoverBook objects to dictionaries for API response
+            return [hb.__dict__ for hb in hardcover_books]
+        except Exception as e:
+            logger.error_trace(f"Error fetching Hardcover 'Want to Read' list: {e}")
+            return []
+
+    def queue_hardcover_book_for_download(hardcover_book_id: str) -> bool:
+        """
+        Search for a book from Hardcover on Anna's Archive and queue it for download.
+        """
+        try:
+            # First, get detailed info for the Hardcover book
+            # We would ideally get this from the HardcoverBook object passed from the frontend,
+            # but for robustness, let's assume we might only get the ID.
+            # In a real scenario, the frontend would pass more data.
+            # For this example, we'll need to fetch book details if not already available.
+            # HardcoverManager does not have a get_book_info_by_id currently,
+            # so we'll simulate by searching if we don't have the full object.
+            # For simplicity, assuming the frontend passes the title and author names.
+            # A more robust solution would involve fetching by ID from Hardcover.
+
+            # To correctly implement "downloading individual books using the existing download logic",
+            # we need to:
+            # 1. Get the Hardcover book details (title, author, ISBN).
+            # 2. Use those details to search for the book on Anna's Archive.
+            # 3. Select the best matching result from Anna's Archive.
+            # 4. Queue the Anna's Archive book using the existing `queue_book` function.
+
+            # Find the Hardcover book details first
+            hardcover_books = hardcover_manager.search_hardcover_books(query=hardcover_book_id, limit=1)
+            if not hardcover_books:
+                logger.warning(f"Hardcover book with ID {hardcover_book_id} not found on Hardcover.")
+                return False
+
+            hardcover_book = hardcover_books[0] # Assuming the first result is the one we want
+
+            # Now, search Anna's Archive using details from the Hardcover book
+            filters = SearchFilters(
+                title=[hardcover_book.title],
+                author=hardcover_book.author_names,
+                isbn=[hardcover_book.isbn13] if hardcover_book.isbn13 else None
+            )
+            anna_archive_books = book_manager.search_books(hardcover_book.title, filters) # Use title as main query
+
+            if not anna_archive_books:
+                logger.warning(f"No matching book found on Anna's Archive for Hardcover book '{hardcover_book.title}'.")
+                return False
+
+            # Select the first matching book from Anna's Archive (can be refined for best match)
+            book_to_download = anna_archive_books[0]
+            book_to_download.hardcover_id = hardcover_book.id # Link the AA book to Hardcover ID
+
+            # Queue the book using the existing logic
+            book_queue.add(book_to_download.id, book_to_download)
+            logger.info(f"Hardcover book '{hardcover_book.title}' queued for download via Anna's Archive.")
+            return True
+        except Exception as e:
+            logger.error_trace(f"Error queuing Hardcover book for download: {e}")
+            return False

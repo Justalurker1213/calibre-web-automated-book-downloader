@@ -8,9 +8,9 @@ from werkzeug.wrappers import Response
 from flask import url_for as flask_url_for
 import typing
 
-from logger import setup_logger
+from logger import setup_logger # type: ignore
 from config import _SUPPORTED_BOOK_LANGUAGE, BOOK_LANGUAGE
-from env import FLASK_HOST, FLASK_PORT, APP_ENV, DEBUG
+from env import FLASK_HOST, FLASK_PORT, APP_ENV, DEBUG, HARDCOVER_ENABLE
 import backend
 
 from models import SearchFilters
@@ -73,7 +73,7 @@ def index() -> str:
     """
     Render main page with search and status table.
     """
-    return render_template('index.html', book_languages=_SUPPORTED_BOOK_LANGUAGE, default_language=BOOK_LANGUAGE, debug=DEBUG)
+    return render_template('index.html', book_languages=_SUPPORTED_BOOK_LANGUAGE, default_language=BOOK_LANGUAGE, debug=DEBUG, hardcover_enable=HARDCOVER_ENABLE)
 
 @app.route('/favico<path:_>')
 @app.route('/request/favico<path:_>')
@@ -121,6 +121,7 @@ if DEBUG:
         except Exception as e:
             logger.error_trace(f"Debug endpoint error: {e}")
             return jsonify({"error": str(e)}), 500
+        
 
 @app.route('/api/search', methods=['GET'])
 def api_search() -> Union[Response, Tuple[Response, int]]:
@@ -258,6 +259,46 @@ def api_local_download() -> Union[Response, Tuple[Response, int]]:
     except Exception as e:
         logger.error_trace(f"Local download error: {e}")
         return jsonify({"error": str(e)}), 500
+
+if HARDCOVER_ENABLE:
+    @app.route('/api/hardcover/want_to_read', methods=['GET'])
+    def api_hardcover_want_to_read() -> Union[Response, Tuple[Response, int]]:
+        """
+        Get a user's 'Want to Read' list from Hardcover.
+
+        Returns:
+            flask.Response: JSON array of books from Hardcover.
+        """
+        try:
+            books = backend.get_hardcover_want_to_read()
+            return jsonify(books)
+        except Exception as e:
+            logger.error_trace(f"Hardcover 'Want to Read' error: {e}")
+            return jsonify({"error": str(e)}), 500
+
+    @app.route('/api/hardcover/download', methods=['GET'])
+    def api_hardcover_download() -> Union[Response, Tuple[Response, int]]:
+        """
+        Queue a book from Hardcover for download using Anna's Archive.
+
+        Query Parameters:
+            hardcover_id (str): Hardcover book identifier.
+
+        Returns:
+            flask.Response: JSON status object indicating success or failure.
+        """
+        hardcover_id = request.args.get('hardcover_id', '')
+        if not hardcover_id:
+            return jsonify({"error": "No Hardcover book ID provided"}), 400
+
+        try:
+            success = backend.queue_hardcover_book_for_download(hardcover_id)
+            if success:
+                return jsonify({"status": "queued"})
+            return jsonify({"error": "Failed to queue Hardcover book for download"}), 500
+        except Exception as e:
+            logger.error_trace(f"Hardcover download queue error: {e}")
+            return jsonify({"error": str(e)}), 500
 
 @app.errorhandler(404)
 def not_found_error(error: Exception) -> Union[Response, Tuple[Response, int]]:
